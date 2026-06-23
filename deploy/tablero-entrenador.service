@@ -1,0 +1,18 @@
+[Unit]
+Description=Tablero del Entrenador (FastAPI/Uvicorn)
+After=network.target
+
+[Service]
+User=ubuntu
+WorkingDirectory=/opt/tablero-entrenador
+EnvironmentFile=/opt/tablero-entrenador/.env
+# --proxy-headers + --forwarded-allow-ips: nginx termina TLS y proxya HTTP; así
+# FastAPI ve el esquema https correcto (necesario para la cookie de sesión Secure).
+ExecStart=/opt/tablero-entrenador/.venv/bin/uvicorn server.main:app \
+    --host 127.0.0.1 --port 8091 \
+    --proxy-headers --forwarded-allow-ips 127.0.0.1
+Restart=on-failure
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target

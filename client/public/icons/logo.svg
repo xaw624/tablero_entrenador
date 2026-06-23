@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Tablero del Entrenador">
+  <rect width="512" height="512" rx="112" fill="#14181c"/>
+  <!-- Figura corriendo -->
+  <g fill="none" stroke="#d8472b" stroke-width="26" stroke-linecap="round" stroke-linejoin="round">
+    <!-- columna / torso inclinado -->
+    <path d="M292 196 L244 300"/>
+    <!-- brazo delantero -->
+    <path d="M286 224 L348 206"/>
+    <!-- brazo trasero -->
+    <path d="M286 224 L228 250"/>
+    <!-- pierna delantera -->
+    <path d="M244 300 L300 330 L304 384"/>
+    <!-- pierna trasera -->
+    <path d="M244 300 L200 340 L160 330"/>
+  </g>
+  <circle cx="300" cy="156" r="32" fill="#d8472b"/>
+  <!-- Pesa / dumbbell -->
+  <g fill="#eef2f4">
+    <rect x="176" y="410" width="160" height="20" rx="10"/>
+    <rect x="156" y="394" width="22" height="52" rx="7"/>
+    <rect x="334" y="394" width="22" height="52" rx="7"/>
+    <rect x="134" y="404" width="18" height="32" rx="6"/>
+    <rect x="360" y="404" width="18" height="32" rx="6"/>
+  </g>
+</svg>

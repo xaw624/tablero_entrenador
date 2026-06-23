@@ -1,0 +1,28 @@
+/* Identidad visual del prototipo aprobado (§7.2). Tema oscuro "pizarra de entrenador". */
+:root {
+  --bg: #14181c;
+  --bg2: #1b2025;
+  --card: #1f262c;
+  --card2: #262e35;
+  --line: #323b43;
+  --ink: #eef2f4;
+  --ink-dim: #9aa6ad;
+  --ink-faint: #69757c;
+  --brick: #d8472b; /* rojo tartán de pista — acento de marca */
+
+  /* Códigos de nivel: A=rojo, B=ámbar, C=verde. NUNCA cambiar este mapeo. */
+  --lvlA: #d8472b;
+  --lvlB: #e6a02c;
+  --lvlC: #3fae7a;
+
+  --up: #3fae7a;
+  --down: #e8654f;
+
+  --radius: 10px;
+  --radius-sm: 7px;
+
+  /* Tipografías: condensada para títulos/etiquetas, sans neutra para cuerpo.
+     Sustituibles por Oswald/Barlow Condensed + Inter empaquetadas localmente. */
+  --font-cond: "Barlow Condensed", "Oswald", "Arial Narrow", system-ui, sans-serif;
+  --font-body: "Inter", system-ui, -apple-system, "Segoe UI", Helvetica, Arial, sans-serif;
+}
