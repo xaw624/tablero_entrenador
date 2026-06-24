@@ -138,6 +138,25 @@ curl -sI $BASE/sw.js | head -1                                # 200
 curl -sI $BASE/icons/icon-192.png | grep -i content-type      # image/png
 ```
 
+## 4c. Niveles dinámicos y días configurables (iteración 3)
+
+- [ ] **Editar → Niveles:** veo Principiante/Intermedio/Avanzado; puedo renombrar, cambiar color,
+  reordenar (↑/↓), **añadir** un nivel nuevo y **borrar** uno (con confirmación).
+- [ ] Al **añadir un nivel**, en Editar→Rutinas cada ejercicio muestra una variante extra para ese nivel,
+  y en Alumnos aparece un botón nuevo por patrón.
+- [ ] Asigno a un alumno el nivel nuevo en un patrón; en **Hoy / por alumno** y en el visor se ve su variante.
+- [ ] Al **borrar un nivel**, los alumnos que lo tenían pasan al primer nivel (sin error).
+- [ ] **Editar → Rutinas → Días:** puedo renombrar el día, fijar su **día de calendario**, editar focus,
+  **reordenar** (↑/↓), **eliminar** y **+día**.
+- [ ] El día cuyo "día de calendario" coincide con hoy se marca con la etiqueta **HOY**; añadir "Sábado"
+  con día de calendario = Sábado lo resalta los sábados.
+- [ ] **CSV de rutinas:** exportar incluye columnas `var_<id>`/`media_<id>` por nivel y `weekday`; editar
+  en Excel y reimportar conserva variantes por nivel.
+
+> **Nota de actualización:** estos cambios traen una **migración de esquema** automática (al reiniciar el
+> servicio). Haz una copia con `deploy/backup.sh` antes de actualizar; la migración convierte A/B/C a
+> Principiante/Intermedio/Avanzado sin perder datos.
+
 ## 5. Móvil (mobile-first)
 
 Probar a **360 px** de ancho (DevTools → responsive). Verificar que:

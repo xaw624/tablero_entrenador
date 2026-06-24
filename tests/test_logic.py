@@ -1,6 +1,4 @@
 """Pruebas de la lógica de negocio (§6.10)."""
-from types import SimpleNamespace
-
 from server.logic import delta, format_value, resolve_variant, to_num
 
 
@@ -45,11 +43,14 @@ def test_delta_zero_and_none():
 
 
 def test_resolve_variant():
-    ex = SimpleNamespace(variant_a="A txt", variant_b="B txt", variant_c="C txt")
-    assert resolve_variant(ex, "A") == "A txt"
-    assert resolve_variant(ex, "B") == "B txt"
-    assert resolve_variant(ex, "C") == "C txt"
-    assert resolve_variant(ex, "Z") == "A txt"  # fallback
+    variants = {
+        "A": {"text": "A txt", "media": ""},
+        "B": {"text": "B txt", "media": ""},
+        "C": {"text": "C txt", "media": ""},
+    }
+    assert resolve_variant(variants, "A") == "A txt"
+    assert resolve_variant(variants, "C") == "C txt"
+    assert resolve_variant(variants, "Z") == ""  # nivel sin variante → vacío
 
 
 def test_format_value():

@@ -1,14 +1,15 @@
 import LevelTag from "./LevelTag.jsx";
 import { hasMedia } from "../lib/media.js";
 
-// Modo "all": muestra las 3 variantes A/B/C apiladas.
-// Modo "solo": muestra una sola línea con el nivel del alumno.
+// Modo "all": muestra una línea por nivel (iterando `levels`).
+// Modo "solo": una sola línea con el nivel del alumno (`level` objeto + `text`/`media`).
 // onShow: si se pasa, renderiza el botón "Mostrar ejercicio".
-export default function ExerciseRow({ exercise, mode, level, text, media, onShow }) {
+export default function ExerciseRow({ exercise, mode, levels, level, text, media, onShow }) {
+  const variants = exercise.variants || {};
   const anyMedia =
     mode === "solo"
       ? hasMedia(media)
-      : hasMedia(exercise.media_a) || hasMedia(exercise.media_b) || hasMedia(exercise.media_c);
+      : (levels || []).some((l) => hasMedia(variants[l.id]?.media));
 
   return (
     <div className="exrow">
@@ -27,10 +28,10 @@ export default function ExerciseRow({ exercise, mode, level, text, media, onShow
           <span className="txt solo">{text || "—"}</span>
         </div>
       ) : (
-        ["A", "B", "C"].map((lv) => (
-          <div className="exvariant" key={lv}>
-            <LevelTag level={lv} size="sm" />
-            <span className="txt">{exercise[`variant_${lv.toLowerCase()}`] || "—"}</span>
+        (levels || []).map((l) => (
+          <div className="exvariant" key={l.id}>
+            <LevelTag level={l} size="sm" />
+            <span className="txt">{variants[l.id]?.text || "—"}</span>
           </div>
         ))
       )}

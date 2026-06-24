@@ -32,7 +32,10 @@ Para desarrollo del frontend con hot-reload: `cd client && npm run dev` (Vite pr
 
 ## Funciones destacadas
 
-- **A/B/C por patrón**: cada alumno tiene su nivel por patrón; la app resuelve la variante por ejercicio.
+- **Niveles configurables por patrón**: lista global de niveles (por defecto Principiante/Intermedio/Avanzado,
+  editables; se pueden añadir, quitar, renombrar y recolorear). Cada alumno tiene su nivel por patrón.
+- **Días configurables**: añadir/quitar/renombrar/reordenar días de la semana; cada uno se mapea a un día
+  de calendario para resaltar "Hoy".
 - **Medios por variante**: imagen/gif subida (en `data/uploads/`) o enlace de video (YouTube/Vimeo/mp4).
   Botón **"Mostrar ejercicio"** → página completa con el medio y navegación anterior/siguiente.
 - **Import/Export CSV** de rutinas y pruebas (editable en Excel; importar reemplaza todo).

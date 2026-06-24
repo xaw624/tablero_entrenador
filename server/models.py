@@ -25,6 +25,14 @@ class Pattern(SQLModel, table=True):
     sort: int
 
 
+class Level(SQLModel, table=True):
+    __tablename__ = "levels"
+    id: str = Field(primary_key=True)       # slug ('principiante', 'A'...)
+    label: str                              # nombre mostrado ('Principiante')
+    color: str                              # hex ('#d8472b')
+    sort: int
+
+
 class Athlete(SQLModel, table=True):
     __tablename__ = "athletes"
     id: Optional[int] = Field(default=None, primary_key=True)
@@ -38,7 +46,7 @@ class AthleteLevel(SQLModel, table=True):
     __tablename__ = "athlete_levels"
     athlete_id: int = Field(foreign_key="athletes.id", primary_key=True)
     pattern_id: str = Field(foreign_key="patterns.id", primary_key=True)
-    level: str  # 'A' | 'B' | 'C'
+    level: str  # level_id (FK lógico a levels.id)
 
 
 class RoutineDay(SQLModel, table=True):
@@ -47,6 +55,7 @@ class RoutineDay(SQLModel, table=True):
     name: str
     focus: str
     sort: int
+    weekday: Optional[int] = None  # 0=domingo..6=sábado; para resaltar "Hoy"
 
 
 class RoutineBlock(SQLModel, table=True):
@@ -63,14 +72,17 @@ class RoutineExercise(SQLModel, table=True):
     block_id: int = Field(foreign_key="routine_blocks.id")
     name: str
     pattern_id: str = Field(foreign_key="patterns.id")
-    variant_a: str = ""
-    variant_b: str = ""
-    variant_c: str = ""
-    # Medio por variante: ruta de archivo subido (/media/<x>) o URL de video externa.
-    media_a: str = ""
-    media_b: str = ""
-    media_c: str = ""
     sort: int
+    # Las variantes (texto + medio) por nivel viven en exercise_variants (iteración 3).
+    # En BD migradas pueden quedar columnas legacy variant_a/b/c, media_a/b/c (sin uso).
+
+
+class ExerciseVariant(SQLModel, table=True):
+    __tablename__ = "exercise_variants"
+    exercise_id: int = Field(foreign_key="routine_exercises.id", primary_key=True)
+    level_id: str = Field(foreign_key="levels.id", primary_key=True)
+    text: str = ""
+    media: str = ""
 
 
 class Test(SQLModel, table=True):

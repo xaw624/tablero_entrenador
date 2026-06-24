@@ -42,7 +42,7 @@ export default function MediaPicker({ value, onCommit, level, onError }) {
 
   return (
     <div className="mediapicker">
-      <label style={{ color: `var(--lvl${level})` }}>Medio {level}</label>
+      <label className="muted">Medio (imagen/gif o URL de video)</label>
       <div className="row" style={{ gap: 6 }}>
         <input
           className="grow"

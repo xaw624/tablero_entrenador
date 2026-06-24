@@ -1,5 +1,12 @@
-// Cuadro con letra A/B/C y color del nivel. Mapeo fijo: A=rojo, B=ámbar, C=verde.
+import { readableOn } from "../lib/levels.js";
+
+// Píldora con el nombre del nivel y su color. `level` es el objeto {id,label,color}.
 export default function LevelTag({ level, size = "sm" }) {
-  const lv = (level || "A").toUpperCase();
-  return <span className={`lvl ${size} ${lv}`} aria-label={`Nivel ${lv}`}>{lv}</span>;
+  if (!level) return null;
+  const color = level.color || "#888888";
+  return (
+    <span className={`ltag ${size}`} style={{ background: color, color: readableOn(color) }}>
+      {level.label}
+    </span>
+  );
 }

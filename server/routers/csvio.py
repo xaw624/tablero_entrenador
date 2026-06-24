@@ -18,15 +18,25 @@ from sqlmodel import Session, select
 from server.auth import require_user
 from server.db import get_session
 from server.logic import VALID_BETTER, VALID_UNITS
-from server.models import Measurement, Pattern, RoutineBlock, RoutineDay, RoutineExercise, Test
+from server.models import (
+    ExerciseVariant,
+    Level,
+    Measurement,
+    Pattern,
+    RoutineBlock,
+    RoutineDay,
+    RoutineExercise,
+    Test,
+)
 from server.routers.tests import _slugify, _unique_slug
+from server.services import levels_list
 
 router = APIRouter(prefix="/api", tags=["csv"])
 
-ROUTINE_COLUMNS = [
-    "day_key", "day_name", "day_focus", "block_title", "block_sort",
-    "exercise_name", "pattern_id", "variant_a", "variant_b", "variant_c",
-    "media_a", "media_b", "media_c", "exercise_sort",
+# Columnas base de rutinas; las de variantes (var_<id>/media_<id>) son dinámicas por nivel.
+ROUTINE_BASE_COLUMNS = [
+    "day_key", "day_name", "weekday", "day_focus", "day_sort",
+    "block_title", "block_sort", "exercise_name", "pattern_id", "exercise_sort",
 ]
 TEST_COLUMNS = ["id", "name", "pattern_id", "unit", "better", "sort"]
 
@@ -60,6 +70,11 @@ async def _read_rows(file: UploadFile) -> list[dict]:
 # ---------------- Rutinas ----------------
 @router.get("/export/routines.csv")
 def export_routines(_=Depends(require_user), session: Session = Depends(get_session)):
+    levels = levels_list(session)
+    columns = list(ROUTINE_BASE_COLUMNS)
+    for lvl in levels:
+        columns += [f"var_{lvl.id}", f"media_{lvl.id}"]
+
     rows = []
     days = session.exec(select(RoutineDay).order_by(RoutineDay.sort)).all()
     for day in days:
@@ -73,12 +88,20 @@ def export_routines(_=Depends(require_user), session: Session = Depends(get_sess
                 .order_by(RoutineExercise.sort)
             ).all()
             for ex in items:
-                rows.append([
-                    day.day_key, day.name, day.focus, block.title, block.sort,
-                    ex.name, ex.pattern_id, ex.variant_a, ex.variant_b, ex.variant_c,
-                    ex.media_a, ex.media_b, ex.media_c, ex.sort,
-                ])
-    return _csv_response(ROUTINE_COLUMNS, rows, "rutinas.csv")
+                vmap = {
+                    v.level_id: v for v in session.exec(
+                        select(ExerciseVariant).where(ExerciseVariant.exercise_id == ex.id)
+                    ).all()
+                }
+                row = [
+                    day.day_key, day.name, day.weekday if day.weekday is not None else "",
+                    day.focus, day.sort, block.title, block.sort, ex.name, ex.pattern_id, ex.sort,
+                ]
+                for lvl in levels:
+                    v = vmap.get(lvl.id)
+                    row += [v.text if v else "", v.media if v else ""]
+                rows.append(row)
+    return _csv_response(columns, rows, "rutinas.csv")
 
 
 @router.post("/import/routines.csv")
@@ -90,11 +113,17 @@ async def import_routines(
     rows = await _read_rows(file)
     if not rows:
         raise HTTPException(status_code=400, detail="El CSV no tiene filas.")
-    missing = [c for c in ("day_key", "block_title", "exercise_name", "pattern_id") if c not in rows[0]]
+    header = set(rows[0].keys())
+    missing = [c for c in ("day_key", "block_title", "exercise_name", "pattern_id") if c not in header]
     if missing:
         raise HTTPException(status_code=400, detail=f"Faltan columnas: {', '.join(missing)}")
 
     valid_patterns = {p.id for p in session.exec(select(Pattern)).all()}
+    valid_levels = {l.id for l in levels_list(session)}
+    # Niveles presentes en el CSV (columna var_<id>) que existan en el catálogo.
+    csv_levels = sorted(
+        {c[len("var_"):] for c in header if c.startswith("var_") and c[len("var_"):] in valid_levels}
+    )
 
     def to_int(v, default=0):
         try:
@@ -112,24 +141,27 @@ async def import_routines(
         if pid not in valid_patterns:
             raise HTTPException(status_code=400, detail=f"Fila {i}: patrón inválido '{pid}'.")
         if dk not in days:
+            wd = r.get("weekday", "")
             days[dk] = {"name": r.get("day_name") or dk, "focus": r.get("day_focus", ""),
-                        "sort": len(order) + 1, "blocks": {}}
+                        "weekday": to_int(wd, None) if wd != "" else None,
+                        "sort": to_int(r.get("day_sort"), len(order) + 1), "blocks": {}}
             order.append(dk)
         blocks = days[dk]["blocks"]
         bt = r.get("block_title", "") or "Bloque"
         if bt not in blocks:
             blocks[bt] = {"sort": to_int(r.get("block_sort"), len(blocks) + 1), "items": []}
+        variants = {lid: {"text": r.get(f"var_{lid}", ""), "media": r.get(f"media_{lid}", "")}
+                    for lid in csv_levels}
         blocks[bt]["items"].append({
             "name": r.get("exercise_name", "") or "Ejercicio",
             "pattern_id": pid,
-            "variant_a": r.get("variant_a", ""), "variant_b": r.get("variant_b", ""),
-            "variant_c": r.get("variant_c", ""),
-            "media_a": r.get("media_a", ""), "media_b": r.get("media_b", ""),
-            "media_c": r.get("media_c", ""),
+            "variants": variants,
             "sort": to_int(r.get("exercise_sort"), len(blocks[bt]["items"]) + 1),
         })
 
     # Reemplazo total (rutinas no tienen FK entrantes).
+    for v in session.exec(select(ExerciseVariant)).all():
+        session.delete(v)
     for ex in session.exec(select(RoutineExercise)).all():
         session.delete(ex)
     for bl in session.exec(select(RoutineBlock)).all():
@@ -140,21 +172,26 @@ async def import_routines(
 
     for dk in order:
         d = days[dk]
-        session.add(RoutineDay(day_key=dk, name=d["name"], focus=d["focus"], sort=d["sort"]))
+        session.add(RoutineDay(
+            day_key=dk, name=d["name"], focus=d["focus"], sort=d["sort"], weekday=d["weekday"]
+        ))
         session.flush()
         for bt, b in sorted(d["blocks"].items(), key=lambda kv: kv[1]["sort"]):
             block = RoutineBlock(day_key=dk, title=bt, sort=b["sort"])
             session.add(block)
             session.flush()
             for esort, item in enumerate(sorted(b["items"], key=lambda x: x["sort"]), start=1):
-                session.add(RoutineExercise(block_id=block.id, sort=esort, **{
-                    k: item[k] for k in (
-                        "name", "pattern_id", "variant_a", "variant_b", "variant_c",
-                        "media_a", "media_b", "media_c",
-                    )
-                }))
+                ex = RoutineExercise(
+                    block_id=block.id, name=item["name"], pattern_id=item["pattern_id"], sort=esort
+                )
+                session.add(ex)
+                session.flush()
+                for lid, vv in item["variants"].items():
+                    session.add(ExerciseVariant(
+                        exercise_id=ex.id, level_id=lid, text=vv["text"], media=vv["media"]
+                    ))
     session.commit()
-    return {"ok": True, "days": len(order)}
+    return {"ok": True, "days": len(order), "levels": len(csv_levels)}
 
 
 # ---------------- Pruebas ----------------

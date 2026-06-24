@@ -2,36 +2,48 @@ import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useStore } from "../state/store.jsx";
 import ExerciseRow from "../components/ExerciseRow.jsx";
-import { isWeekend, todayDayKey } from "../lib/format.js";
-
-const DAY_ORDER = ["lunes", "martes", "miercoles", "jueves", "viernes"];
+import { levelsById } from "../lib/levels.js";
 
 export default function Today() {
-  const { routines, athletes } = useStore();
+  const { routines, athletes, levels } = useStore();
   const navigate = useNavigate();
-  const [day, setDay] = useState(() => todayDayKey());
+
+  // Lista de días ordenada por sort; "Hoy" = día cuyo weekday coincide con el del calendario.
+  const days = useMemo(
+    () => Object.values(routines).sort((a, b) => a.sort - b.sort),
+    [routines]
+  );
+  const todayKey = useMemo(() => {
+    const wd = new Date().getDay();
+    const match = days.find((d) => d.weekday === wd);
+    return match ? match.day_key : days[0]?.day_key;
+  }, [days]);
+
+  const [day, setDay] = useState(() => todayKey);
   const [view, setView] = useState("all"); // 'all' o athlete id (string)
 
-  const showExercise = (exId) =>
-    navigate(`/ejercicio/${day}/${exId}?view=${encodeURIComponent(view)}`);
-
+  const lvById = useMemo(() => levelsById(levels), [levels]);
   const activeAthletes = athletes.filter((a) => !a.archived);
-  const dayData = routines[day];
-  const isToday = day === todayDayKey();
+  const dayData = routines[day] || routines[todayKey];
+  const isToday = dayData && dayData.day_key === todayKey;
 
   const athlete = useMemo(
     () => (view === "all" ? null : activeAthletes.find((a) => String(a.id) === String(view))),
     [view, activeAthletes]
   );
 
+  const showExercise = (exId) =>
+    navigate(`/ejercicio/${dayData.day_key}/${exId}?view=${encodeURIComponent(view)}`);
+
   if (!dayData) return <div className="page"><div className="empty">No hay rutina para este día.</div></div>;
 
   return (
     <div className="page">
       <div className="chips">
-        {DAY_ORDER.map((d) => (
-          <button key={d} className={`chip ${d === day ? "active" : ""}`} onClick={() => setDay(d)}>
-            {routines[d]?.name || d}
+        {days.map((d) => (
+          <button key={d.day_key} className={`chip ${d.day_key === dayData.day_key ? "active" : ""}`}
+            onClick={() => setDay(d.day_key)}>
+            {d.name}
           </button>
         ))}
       </div>
@@ -43,15 +55,12 @@ export default function Today() {
           {isToday && <span className="today-tag">Hoy</span>}
         </div>
         <div className="focus">{dayData.focus}</div>
-        {isWeekend() && isToday && (
-          <div className="muted" style={{ marginTop: 6 }}>Fin de semana — mostrando lunes por defecto.</div>
-        )}
       </div>
 
       <div className="field">
         <label>Ver para</label>
         <select value={view} onChange={(e) => setView(e.target.value)}>
-          <option value="all">Todos (A/B/C)</option>
+          <option value="all">Todos los niveles</option>
           {activeAthletes.map((a) => (
             <option key={a.id} value={a.id}>{a.name}</option>
           ))}
@@ -64,15 +73,15 @@ export default function Today() {
           <div className="block-title" style={{ marginTop: 0 }}>{block.title}</div>
           {block.items.map((ex) => {
             if (athlete) {
-              const level = athlete.levels[ex.pattern_id] || "A";
-              const text = ex[`variant_${level.toLowerCase()}`];
-              const media = ex[`media_${level.toLowerCase()}`];
+              const levelId = athlete.levels[ex.pattern_id];
+              const v = ex.variants[levelId] || {};
               return (
-                <ExerciseRow key={ex.id} exercise={ex} mode="solo" level={level} text={text}
-                  media={media} onShow={() => showExercise(ex.id)} />
+                <ExerciseRow key={ex.id} exercise={ex} mode="solo" level={lvById[levelId]}
+                  text={v.text} media={v.media} onShow={() => showExercise(ex.id)} />
               );
             }
-            return <ExerciseRow key={ex.id} exercise={ex} mode="all" onShow={() => showExercise(ex.id)} />;
+            return <ExerciseRow key={ex.id} exercise={ex} mode="all" levels={levels}
+              onShow={() => showExercise(ex.id)} />;
           })}
         </div>
       ))}

@@ -38,14 +38,74 @@ def _set_sqlite_pragma(dbapi_connection, connection_record):  # noqa: ANN001
     cursor.close()
 
 
+# Niveles por defecto: mapean A/B/C heredados a nombres legibles, conservando sus colores.
+_DEFAULT_LEVELS = [
+    ("A", "Principiante", "#d8472b", 1),
+    ("B", "Intermedio", "#e6a02c", 2),
+    ("C", "Avanzado", "#3fae7a", 3),
+]
+_WEEKDAY_BY_KEY = {
+    "domingo": 0, "lunes": 1, "martes": 2, "miercoles": 3,
+    "jueves": 4, "viernes": 5, "sabado": 6,
+}
+
+
+def _columns(connection, table: str) -> set[str]:
+    return {row[1] for row in connection.exec_driver_sql(f"PRAGMA table_info({table})")}
+
+
 def _migrate(connection) -> None:
-    """Migraciones aditivas idempotentes (SQLite). create_all no altera tablas existentes."""
-    existing = {row[1] for row in connection.exec_driver_sql("PRAGMA table_info(routine_exercises)")}
-    for col in ("media_a", "media_b", "media_c"):
-        if col not in existing:
+    """Migraciones idempotentes (SQLite). create_all crea tablas nuevas pero no altera existentes.
+
+    Iteración 3: niveles dinámicos (catálogo `levels` + `exercise_variants`) y `weekday` en días.
+    Convierte una BD con columnas legacy variant_a/b/c (+ media_a/b/c) sin pérdida.
+    """
+    # 1. routine_days.weekday (ALTER si la columna falta en una BD existente).
+    day_cols = _columns(connection, "routine_days")
+    if day_cols and "weekday" not in day_cols:
+        connection.exec_driver_sql("ALTER TABLE routine_days ADD COLUMN weekday INTEGER")
+
+    # 2. Niveles por defecto si el catálogo está vacío.
+    if not connection.exec_driver_sql("SELECT COUNT(*) FROM levels").scalar():
+        for lid, label, color, sort in _DEFAULT_LEVELS:
             connection.exec_driver_sql(
-                f"ALTER TABLE routine_exercises ADD COLUMN {col} TEXT NOT NULL DEFAULT ''"
+                "INSERT INTO levels (id, label, color, sort) VALUES (?, ?, ?, ?)",
+                (lid, label, color, sort),
             )
+
+    # 3. Copiar variantes legacy → exercise_variants (una sola vez).
+    ex_cols = _columns(connection, "routine_exercises")
+    variants_empty = not connection.exec_driver_sql(
+        "SELECT COUNT(*) FROM exercise_variants"
+    ).scalar()
+    if variants_empty and "variant_a" in ex_cols:
+        has_media = "media_a" in ex_cols
+        cols = "id, variant_a, variant_b, variant_c"
+        if has_media:
+            cols += ", media_a, media_b, media_c"
+        rows = connection.exec_driver_sql(f"SELECT {cols} FROM routine_exercises").all()
+        for r in rows:
+            texts = {"A": r[1] or "", "B": r[2] or "", "C": r[3] or ""}
+            medias = {"A": r[4] or "", "B": r[5] or "", "C": r[6] or ""} if has_media else {}
+            for lid in ("A", "B", "C"):
+                connection.exec_driver_sql(
+                    "INSERT INTO exercise_variants (exercise_id, level_id, text, media) "
+                    "VALUES (?, ?, ?, ?)",
+                    (r[0], lid, texts[lid], medias.get(lid, "")),
+                )
+
+    # 4. Poblar weekday por day_key conocido si todos están en NULL.
+    total = connection.exec_driver_sql("SELECT COUNT(*) FROM routine_days").scalar()
+    nulls = connection.exec_driver_sql(
+        "SELECT day_key FROM routine_days WHERE weekday IS NULL"
+    ).all()
+    if total and len(nulls) == total:
+        for (dk,) in nulls:
+            wd = _WEEKDAY_BY_KEY.get(dk)
+            if wd is not None:
+                connection.exec_driver_sql(
+                    "UPDATE routine_days SET weekday = ? WHERE day_key = ?", (wd, dk)
+                )
 
 
 def init_db() -> None:

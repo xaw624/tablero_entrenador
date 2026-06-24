@@ -3,14 +3,16 @@ import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { useStore } from "../state/store.jsx";
 import MediaView from "../components/MediaView.jsx";
 import LevelTag from "../components/LevelTag.jsx";
+import { levelsById } from "../lib/levels.js";
 
 export default function ExerciseView() {
   const { dayKey, exerciseId } = useParams();
   const [params] = useSearchParams();
   const view = params.get("view") || "all"; // 'all' o id de alumno
   const navigate = useNavigate();
-  const { routines, athletes } = useStore();
+  const { routines, athletes, levels } = useStore();
 
+  const lvById = useMemo(() => levelsById(levels), [levels]);
   const day = routines[dayKey];
   // Lista aplanada de ejercicios del día, en orden de bloques.
   const flat = useMemo(() => {
@@ -22,7 +24,8 @@ export default function ExerciseView() {
   const ex = index >= 0 ? flat[index] : null;
 
   const athlete = view === "all" ? null : athletes.find((a) => String(a.id) === String(view));
-  const defaultLevel = athlete && ex ? athlete.levels[ex.pattern_id] || "A" : "A";
+  const fallbackLevel = levels[0]?.id;
+  const defaultLevel = (athlete && ex ? athlete.levels[ex.pattern_id] : null) || fallbackLevel;
   const [level, setLevel] = useState(defaultLevel);
 
   // Al cambiar de ejercicio, reajusta el nivel por defecto.
@@ -40,8 +43,9 @@ export default function ExerciseView() {
     );
   }
 
-  const text = ex[`variant_${level.toLowerCase()}`];
-  const media = ex[`media_${level.toLowerCase()}`];
+  const variant = ex.variants[level] || {};
+  const text = variant.text;
+  const media = variant.media;
 
   const go = (i) => {
     const target = flat[i];
@@ -68,16 +72,16 @@ export default function ExerciseView() {
 
           {/* Selector de variante */}
           <div className="exview-levels">
-            {["A", "B", "C"].map((lv) => (
-              <button key={lv} className={`lvltab ${lv} ${level === lv ? "active" : ""}`} onClick={() => setLevel(lv)}>
-                <LevelTag level={lv} size="sm" /> {lv === defaultLevel && athlete ? "· su nivel" : ""}
+            {levels.map((lv) => (
+              <button key={lv.id} className={`lvltab ${level === lv.id ? "active" : ""}`} onClick={() => setLevel(lv.id)}>
+                <LevelTag level={lv} size="sm" /> {lv.id === defaultLevel && athlete ? "· su nivel" : ""}
               </button>
             ))}
           </div>
 
           <div className="card exview-text">
             <div className="row" style={{ gap: 10, alignItems: "flex-start" }}>
-              <LevelTag level={level} size="md" />
+              <LevelTag level={lvById[level]} size="md" />
               <span className="txt solo">{text || "—"}</span>
             </div>
           </div>

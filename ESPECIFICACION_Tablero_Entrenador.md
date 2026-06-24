@@ -1009,3 +1009,32 @@ client/src/lib/media.js
 client/public/icons/              # logo.svg + PNGs (192/512/maskable/apple-touch/favicon)
 client/scripts/gen-icons.mjs      # genera los PNG con sharp
 ```
+
+---
+
+## 17. Iteración 3 — Niveles dinámicos y días configurables (implementado)
+
+Los niveles dejan de ser fijos A/B/C: pasan a un **catálogo global configurable**, y los días admiten
+**CRUD completo**. Decisiones (ADR-16 a ADR-18) en [`docs/PLAN-Y-DECISIONES.md`](docs/PLAN-Y-DECISIONES.md).
+
+### 17.1 Modelo
+- `levels(id, label, color, sort)` — lista global; por defecto A→Principiante, B→Intermedio, C→Avanzado.
+- `exercise_variants(exercise_id, level_id, text, media)` — reemplaza las columnas fijas `variant_*`/`media_*`.
+- `athlete_levels.level` = `level_id`; `routine_days.weekday` (0=dom..6=sáb) para "Hoy".
+- **Migración** idempotente en `db.py` convierte una BD A/B/C sin pérdida (copia variantes, fija weekday).
+
+### 17.2 API
+- `GET/POST/PATCH/DELETE /api/levels` + `PUT /api/levels/reorder` (borrar reasigna alumnos al primero).
+- `PUT /api/routines/exercises/{id}/variants/{level_id}` (upsert texto/medio por nivel).
+- `POST/DELETE /api/routines/days`, `PUT /api/routines/days/reorder`, `PATCH /api/routines/{day}` (+weekday).
+- CSV de rutinas con columnas dinámicas `var_<id>`/`media_<id>` + `weekday`.
+
+### 17.3 Frontend
+- `LevelTag` con label+color del catálogo; todo `["A","B","C"]` itera `store.levels`. Subpestaña **Niveles**
+  y gestión de **Días** en el Editor; "Hoy" y la lista de días se derivan de `weekday`/`sort`.
+
+### 17.4 Archivos nuevos
+```
+server/routers/levels.py          # CRUD de niveles + reasignación
+client/src/lib/levels.js          # lookup + color de texto legible
+```

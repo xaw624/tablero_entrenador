@@ -191,12 +191,17 @@ o usa `POST /api/import/backup.json` desde la app con el JSON de `GET /api/expor
 
 ## 10. Actualizaciones (deploy de nuevos cambios)
 
+> **Importante:** algunas versiones aplican **migraciones de esquema** automáticas al arrancar
+> (`init_db`). Haz un respaldo **antes** del `git pull`: `deploy/backup.sh`. Las migraciones son
+> idempotentes y conservan los datos (p. ej. A/B/C → Principiante/Intermedio/Avanzado).
+
 ```bash
 cd /home/ubuntu/tablero_entrenador
+deploy/backup.sh                           # respaldo previo (recomendado)
 git pull                                   # o copia los archivos nuevos
 source .venv/bin/activate
 pip install -r requirements.txt            # si cambiaron deps
-python -m server.seed                       # idempotente, seguro de re-ejecutar
+python -m server.seed                       # idempotente; aplica migraciones y siembra lo que falte
 cd client && npm ci && npm run build && cd ..
 sudo systemctl restart tablero-entrenador
 ```

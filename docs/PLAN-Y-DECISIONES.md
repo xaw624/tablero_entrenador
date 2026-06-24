@@ -156,3 +156,43 @@ Verificaciones realizadas durante el desarrollo:
 - Build: `vite-plugin-pwa` genera `sw.js`, `manifest.webmanifest`, `registerSW.js`; FastAPI sirve el
   manifest (`application/manifest+json`), `sw.js` y los iconos; la ruta SPA `/ejercicio/...` cae a `index.html`.
 - Logo verificado visualmente (figura roja corriendo sobre una pesa, fondo oscuro redondeado).
+
+---
+
+## 8. Iteración 3 — niveles dinámicos y días configurables
+
+### ADR-16 · Niveles como catálogo relacional + variantes por nivel
+- **Problema:** A/B/C estaba cableado (columnas `variant_a/b/c`, `media_a/b/c`, colores `--lvlA/B/C`).
+- **Decisión:** catálogo `levels(id,label,color,sort)` (lista global) y tabla `exercise_variants(exercise_id,
+  level_id,text,media)` que reemplaza las columnas fijas. Añadir/quitar niveles ya no toca el esquema.
+  `athlete_levels.level` guarda el `level_id`. Borrar un nivel reasigna a los alumnos al primero y borra
+  sus variantes; no se puede borrar el último.
+- **Migración (sin pérdida, automática en `init_db`):** crea `levels` (A→Principiante, B→Intermedio,
+  C→Avanzado con sus colores), copia `variant_*`/`media_*` a `exercise_variants`, y añade `weekday`. Las
+  columnas legacy quedan inertes. Idempotente: solo corre una vez (guarda por tabla vacía / PRAGMA).
+
+### ADR-17 · Días configurables con `weekday`
+- **Decisión:** CRUD completo de días (`POST/DELETE /api/routines/days`, `PUT /days/reorder`, `PATCH` con
+  `weekday`). `routine_days.weekday` (0=dom..6=sáb) mapea cada día al calendario; "Hoy" se resuelve por ese
+  valor (antes era un literal lunes–viernes). El frontend deriva la lista de días de las claves de
+  `routines` ordenadas por `sort`, no de un `DAY_ORDER` fijo.
+
+### ADR-18 · CSV de rutinas con columnas por nivel
+- **Decisión:** la CSV de rutinas pasa de `variant_a/b/c` a columnas dinámicas `var_<id>`/`media_<id>`
+  (una pareja por nivel) + `weekday`/`day_sort`. El import detecta las columnas de nivel presentes y valida
+  que existan en el catálogo. Export con BOM para Excel; sigue siendo reemplazo total.
+
+### Frontend
+- `LevelTag` se vuelve una píldora con el `label` y color inline del catálogo (helper `readableOn` elige
+  texto negro/blanco por luminancia). Todo `["A","B","C"]` itera ahora `store.levels`. Nueva subpestaña
+  **Niveles** (label, color, reordenar, borrar) y gestión de **Días** (nombre, día de calendario, focus,
+  reordenar, eliminar, +día) en el Editor; variantes por nivel editables (texto + `MediaPicker`).
+
+### Verificación iteración 3
+- pytest: **37 pruebas** en verde (migración de BD vieja, niveles CRUD + reasignación al borrar, días
+  CRUD/reorder, variante por nivel en `for-athlete`, CSV con columnas por nivel).
+- Migración probada sobre la BD de desarrollo (esquema it.2): niveles renombrados, variantes copiadas,
+  `weekday` fijado; el caso nuclear sigue resolviendo (Alumno 3 jueves/pierna → Avanzado → "Búlgara").
+
+> **Deploy:** la migración corre sola al reiniciar el servicio. Hacer `deploy/backup.sh` **antes** del
+> `git pull` que traiga estos cambios.

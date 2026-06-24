@@ -1,7 +1,4 @@
-"""Pruebas de iteración 2: subida de medios, /media, migración y CSV import/export."""
-from sqlalchemy import inspect
-
-from server.db import engine
+"""Pruebas de subida de medios y CSV (it.2) adaptadas a niveles dinámicos (it.3)."""
 
 # PNG 1x1 válido.
 PNG = bytes.fromhex(
@@ -11,9 +8,9 @@ PNG = bytes.fromhex(
 )
 
 
-def test_migration_added_media_columns():
-    cols = {c["name"] for c in inspect(engine).get_columns("routine_exercises")}
-    assert {"media_a", "media_b", "media_c"} <= cols
+def test_levels_seeded(auth):
+    levels = auth.get("/api/levels").json()
+    assert [l["label"] for l in levels] == ["Principiante", "Intermedio", "Avanzado"]
 
 
 def test_upload_rejects_non_image(auth):
@@ -31,10 +28,11 @@ def test_upload_image_and_serve(auth):
     assert served.headers["content-type"].startswith("image/")
 
 
-def test_media_propagates_to_for_athlete(auth):
+def test_variant_media_propagates_to_for_athlete(auth):
     routines = auth.get("/api/routines").json()
     ex = routines["lunes"]["blocks"][0]["items"][0]
-    auth.patch(f"/api/routines/exercises/{ex['id']}", json={"media_c": "https://youtu.be/abc123"})
+    # Asigna medio a la variante C (Avanzado) vía el endpoint de variantes.
+    auth.put(f"/api/routines/exercises/{ex['id']}/variants/C", json={"media": "https://youtu.be/abc123"})
     athletes = auth.get("/api/athletes").json()
     a3 = next(a for a in athletes if a["name"] == "Alumno 3")  # empuje: C
     fa = auth.get(f"/api/routines/lunes/for-athlete/{a3['id']}").json()
@@ -43,24 +41,28 @@ def test_media_propagates_to_for_athlete(auth):
     assert item["media"] == "https://youtu.be/abc123"
 
 
-def test_export_routines_csv_has_bom_and_media(auth):
+def test_export_routines_csv_has_bom_and_level_columns(auth):
     r = auth.get("/api/export/routines.csv")
     assert r.status_code == 200
     assert r.text.startswith("﻿")  # BOM para Excel
-    assert "day_key" in r.text and "media_a" in r.text
+    head = r.text.splitlines()[0]
+    assert "day_key" in head and "weekday" in head
+    assert "var_A" in head and "media_A" in head  # columnas dinámicas por nivel
 
 
 def test_import_routines_replace_and_validate(auth):
     csv = (
-        "day_key,day_name,day_focus,block_title,block_sort,exercise_name,pattern_id,"
-        "variant_a,variant_b,variant_c,media_a,media_b,media_c,exercise_sort\r\n"
-        "lunes,Lunes,Test Focus,Bloque X,1,Ej Uno,empuje,a,b,c,,,,1\r\n"
+        "day_key,day_name,weekday,day_focus,day_sort,block_title,block_sort,"
+        "exercise_name,pattern_id,exercise_sort,var_A,media_A,var_B,media_B,var_C,media_C\r\n"
+        "lunes,Lunes,1,Test Focus,1,Bloque X,1,Ej Uno,empuje,1,Texto A,,Texto B,,Texto C,\r\n"
     )
     r = auth.post("/api/import/routines.csv", files={"file": ("rutinas.csv", csv.encode("utf-8-sig"), "text/csv")})
     assert r.status_code == 200, r.text
     routines = auth.get("/api/routines").json()
     assert routines["lunes"]["focus"] == "Test Focus"
-    assert routines["lunes"]["blocks"][0]["items"][0]["name"] == "Ej Uno"
+    item = routines["lunes"]["blocks"][0]["items"][0]
+    assert item["name"] == "Ej Uno"
+    assert item["variants"]["A"]["text"] == "Texto A"
 
 
 def test_import_routines_rejects_bad_pattern(auth):

@@ -16,6 +16,7 @@ from server.routers import (
     auth as auth_router,
     csvio,
     export,
+    levels,
     patterns,
     progress,
     routines,
@@ -64,6 +65,7 @@ async def security_headers(request: Request, call_next):
 # --- API ---
 app.include_router(auth_router.router)
 app.include_router(patterns.router)
+app.include_router(levels.router)
 app.include_router(athletes.router)
 app.include_router(routines.router)
 app.include_router(tests.router)

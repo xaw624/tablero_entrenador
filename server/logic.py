@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from typing import Optional
 
-VALID_LEVELS = {"A", "B", "C"}
+# Los niveles válidos ya no son fijos: se validan contra la tabla `levels` (iteración 3).
 VALID_UNITS = {"reps", "seg", "cm", "kg", "m", "mm:ss"}
 VALID_BETTER = {"high", "low"}
 
@@ -39,16 +39,13 @@ def delta(better: str, unit: str, cur_raw: str, prev_raw: str) -> Optional[dict]
     return {"value": d, "improved": improved}
 
 
-def resolve_variant(exercise, level: str) -> str:
-    """Devuelve el texto de la variante correspondiente al nivel del alumno (§1.3).
+def resolve_variant(variants: dict, level_id: str) -> str:
+    """Texto de la variante del nivel del alumno (§1.3), desde el dict {level_id: {text, media}}.
 
-    Fallback seguro a la variante A si el nivel es desconocido.
+    Fallback seguro a cadena vacía si no hay variante para ese nivel.
     """
-    return {
-        "A": exercise.variant_a,
-        "B": exercise.variant_b,
-        "C": exercise.variant_c,
-    }.get(level, exercise.variant_a)
+    entry = variants.get(level_id)
+    return (entry or {}).get("text", "") if entry else ""
 
 
 def format_value(unit: str, raw: str) -> str:

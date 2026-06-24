@@ -7,11 +7,15 @@ export function StoreProvider({ children }) {
   const [me, setMe] = useState(null);
   const [ready, setReady] = useState(false); // datos iniciales cargados
   const [patterns, setPatterns] = useState([]);
+  const [levels, setLevels] = useState([]);
   const [athletes, setAthletes] = useState([]);
   const [routines, setRoutines] = useState({});
   const [tests, setTests] = useState([]);
   const [sessions, setSessions] = useState([]);
 
+  const refreshLevels = useCallback(async () => {
+    setLevels(await api.get("/api/levels"));
+  }, []);
   const refreshAthletes = useCallback(async () => {
     setAthletes(await api.get("/api/athletes"));
   }, []);
@@ -26,14 +30,16 @@ export function StoreProvider({ children }) {
   }, []);
 
   const loadAll = useCallback(async () => {
-    const [p, a, r, t, s] = await Promise.all([
+    const [p, lv, a, r, t, s] = await Promise.all([
       api.get("/api/patterns"),
+      api.get("/api/levels"),
       api.get("/api/athletes"),
       api.get("/api/routines"),
       api.get("/api/tests"),
       api.get("/api/sessions"),
     ]);
     setPatterns(p);
+    setLevels(lv);
     setAthletes(a);
     setRoutines(r);
     setTests(t);
@@ -45,6 +51,7 @@ export function StoreProvider({ children }) {
     setMe(null);
     setReady(false);
     setPatterns([]);
+    setLevels([]);
     setAthletes([]);
     setRoutines({});
     setTests([]);
@@ -54,9 +61,9 @@ export function StoreProvider({ children }) {
   const value = {
     me, setMe,
     ready,
-    patterns, athletes, routines, tests, sessions,
+    patterns, levels, athletes, routines, tests, sessions,
     loadAll, reset,
-    refreshAthletes, refreshRoutines, refreshTests, refreshSessions,
+    refreshLevels, refreshAthletes, refreshRoutines, refreshTests, refreshSessions,
   };
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;
 }

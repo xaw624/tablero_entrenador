@@ -3,13 +3,15 @@ import { api, ApiError } from "../api.js";
 import { useStore } from "../state/store.jsx";
 import { useToast } from "../components/Toast.jsx";
 import LevelTag from "../components/LevelTag.jsx";
+import { levelsById } from "../lib/levels.js";
 import {
   computeDelta, dateInputToMs, dateInputValue, fmtShortDate, formatDelta, todayMs,
 } from "../lib/format.js";
 
 export default function TestDay() {
-  const { athletes, tests, refreshSessions } = useStore();
+  const { athletes, tests, levels, refreshSessions } = useStore();
   const toast = useToast();
+  const lvById = useMemo(() => levelsById(levels), [levels]);
   const activeAthletes = athletes.filter((a) => !a.archived);
   const activeTests = tests.filter((t) => !t.archived);
 
@@ -118,7 +120,7 @@ export default function TestDay() {
           const key = `${a.id}:${activeTestId}`;
           const raw = values[key] ?? "";
           const prev = prevMap[key];
-          const level = a.levels[activeTest?.pattern_id] || "A";
+          const level = lvById[a.levels[activeTest?.pattern_id]];
           const d = prev != null ? computeDelta(activeTest.better, activeTest.unit, raw, prev) : null;
           return (
             <div className="exrow" key={a.id}>

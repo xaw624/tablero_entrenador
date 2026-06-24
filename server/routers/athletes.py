@@ -6,9 +6,9 @@ from sqlmodel import Session, select
 
 from server.auth import now_ms, require_user
 from server.db import get_session
-from server.models import Athlete, AthleteLevel, Pattern
+from server.models import Athlete, AthleteLevel, Level, Pattern
 from server.schemas import AthleteCreate, AthletePatch, LevelsIn
-from server.services import levels_map, pattern_ids
+from server.services import default_level_id, levels_map, pattern_ids
 
 router = APIRouter(prefix="/api/athletes", tags=["athletes"])
 
@@ -53,9 +53,10 @@ def create_athlete(
     session.commit()
     session.refresh(athlete)
 
-    # Inicializa nivel 'A' en todos los patrones.
+    # Inicializa al nivel por defecto (el de menor sort) en todos los patrones.
+    default = default_level_id(session)
     for pid in pattern_ids(session):
-        session.add(AthleteLevel(athlete_id=athlete.id, pattern_id=pid, level="A"))
+        session.add(AthleteLevel(athlete_id=athlete.id, pattern_id=pid, level=default))
     session.commit()
     return _serialize(session, athlete)
 
@@ -101,6 +102,8 @@ def set_levels(
     for pid, level in updates.items():
         if pid not in valid_patterns:
             raise HTTPException(status_code=400, detail=f"Patrón inválido: {pid}")
+        if not session.get(Level, level):
+            raise HTTPException(status_code=400, detail=f"Nivel inválido: {level}")
         row = session.get(AthleteLevel, (athlete_id, pid))
         if row:
             row.level = level

@@ -14,6 +14,8 @@ from server.db import engine, init_db
 from server.models import (
     Athlete,
     AthleteLevel,
+    ExerciseVariant,
+    Level,
     Pattern,
     RoutineBlock,
     RoutineDay,
@@ -29,6 +31,17 @@ PATTERNS = [
     ("carrera", "Carrera", 4),
     ("core", "Core", 5),
 ]
+
+# Niveles por defecto (ids A/B/C heredados, nombres legibles, colores del prototipo).
+LEVELS = [
+    ("A", "Principiante", "#d8472b", 1),
+    ("B", "Intermedio", "#e6a02c", 2),
+    ("C", "Avanzado", "#3fae7a", 3),
+]
+
+# day_key → día de calendario (0=domingo..6=sábado) para resaltar "Hoy".
+WEEKDAY = {"lunes": 1, "martes": 2, "miercoles": 3, "jueves": 4, "viernes": 5,
+           "sabado": 6, "domingo": 0}
 
 # Cada día: (day_key, name, focus, [bloques]).
 # Cada bloque: (title, [ejercicios]); cada ejercicio: (name, pattern, A, B, C).
@@ -143,11 +156,20 @@ def _seed_patterns(session: Session) -> None:
     session.commit()
 
 
+def _seed_levels(session: Session) -> None:
+    for lid, label, color, sort in LEVELS:
+        if not session.get(Level, lid):
+            session.add(Level(id=lid, label=label, color=color, sort=sort))
+    session.commit()
+
+
 def _seed_routines(session: Session) -> None:
     for sort_day, (day_key, name, focus, blocks) in enumerate(ROUTINES, start=1):
         if session.get(RoutineDay, day_key):
             continue  # idempotente: el día ya existe, no se re-siembra.
-        session.add(RoutineDay(day_key=day_key, name=name, focus=focus, sort=sort_day))
+        session.add(RoutineDay(
+            day_key=day_key, name=name, focus=focus, sort=sort_day, weekday=WEEKDAY.get(day_key)
+        ))
         session.commit()
         for bsort, (title, exercises) in enumerate(blocks, start=1):
             block = RoutineBlock(day_key=day_key, title=title, sort=bsort)
@@ -155,12 +177,15 @@ def _seed_routines(session: Session) -> None:
             session.commit()
             session.refresh(block)
             for esort, (ename, pattern, va, vb, vc) in enumerate(exercises, start=1):
-                session.add(
-                    RoutineExercise(
-                        block_id=block.id, name=ename, pattern_id=pattern,
-                        variant_a=va, variant_b=vb, variant_c=vc, sort=esort,
-                    )
+                ex = RoutineExercise(
+                    block_id=block.id, name=ename, pattern_id=pattern, sort=esort,
                 )
+                session.add(ex)
+                session.commit()
+                session.refresh(ex)
+                # Variantes relacionales por nivel A/B/C.
+                for lid, txt in (("A", va), ("B", vb), ("C", vc)):
+                    session.add(ExerciseVariant(exercise_id=ex.id, level_id=lid, text=txt, media=""))
             session.commit()
 
 
@@ -195,6 +220,7 @@ def run() -> None:
         print("Sembrando datos (idempotente)...")
         _seed_admin(session)
         _seed_patterns(session)
+        _seed_levels(session)
         _seed_routines(session)
         _seed_tests(session)
         _seed_athletes(session)

@@ -5,7 +5,7 @@ from typing import Optional
 
 from pydantic import BaseModel, Field
 
-from server.logic import VALID_BETTER, VALID_LEVELS, VALID_UNITS
+from server.logic import VALID_BETTER, VALID_UNITS
 
 
 # --- Auth ---
@@ -31,7 +31,7 @@ class AthletePatch(BaseModel):
 
 
 class LevelsIn(BaseModel):
-    """Mapa parcial patrón→nivel. Se validan claves/valores en el router."""
+    """Mapa parcial patrón→level_id. Los valores se validan contra `levels` en el router."""
     empuje: Optional[str] = None
     traccion: Optional[str] = None
     pierna: Optional[str] = None
@@ -39,18 +39,46 @@ class LevelsIn(BaseModel):
     core: Optional[str] = None
 
     def as_dict(self) -> dict[str, str]:
-        out = {}
-        for pattern_id, level in self.model_dump(exclude_none=True).items():
-            if level not in VALID_LEVELS:
-                raise ValueError(f"Nivel inválido para {pattern_id}: {level}")
-            out[pattern_id] = level
-        return out
+        return dict(self.model_dump(exclude_none=True))
+
+
+# --- Niveles (catálogo global) ---
+class LevelCreate(BaseModel):
+    label: str = Field(min_length=1)
+    color: str = "#888888"
+
+
+class LevelPatch(BaseModel):
+    label: Optional[str] = Field(default=None, min_length=1)
+    color: Optional[str] = None
+    sort: Optional[int] = None
+
+
+class LevelReorder(BaseModel):
+    level_ids: list[str]
 
 
 # --- Rutinas ---
 class DayPatch(BaseModel):
     name: Optional[str] = None
     focus: Optional[str] = None
+    weekday: Optional[int] = Field(default=None, ge=0, le=6)
+
+
+class DayCreate(BaseModel):
+    name: str = Field(min_length=1)
+    focus: str = ""
+    weekday: Optional[int] = Field(default=None, ge=0, le=6)
+    day_key: Optional[str] = None  # si falta se genera del nombre
+
+
+class DayReorder(BaseModel):
+    day_keys: list[str]
+
+
+class VariantIn(BaseModel):
+    text: Optional[str] = None
+    media: Optional[str] = None
 
 
 class BlockCreate(BaseModel):
@@ -65,23 +93,11 @@ class BlockPatch(BaseModel):
 class ExerciseCreate(BaseModel):
     name: str = Field(min_length=1)
     pattern_id: str
-    variant_a: str = ""
-    variant_b: str = ""
-    variant_c: str = ""
-    media_a: str = ""
-    media_b: str = ""
-    media_c: str = ""
 
 
 class ExercisePatch(BaseModel):
     name: Optional[str] = None
     pattern_id: Optional[str] = None
-    variant_a: Optional[str] = None
-    variant_b: Optional[str] = None
-    variant_c: Optional[str] = None
-    media_a: Optional[str] = None
-    media_b: Optional[str] = None
-    media_c: Optional[str] = None
     sort: Optional[int] = None
 
 

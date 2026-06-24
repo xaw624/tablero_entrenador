@@ -3,9 +3,10 @@ import { api, ApiError } from "../api.js";
 import { useStore } from "../state/store.jsx";
 import { useToast } from "../components/Toast.jsx";
 import ConfirmDialog from "../components/ConfirmDialog.jsx";
+import { readableOn } from "../lib/levels.js";
 
 export default function Athletes() {
-  const { athletes, patterns, refreshAthletes } = useStore();
+  const { athletes, patterns, levels, refreshAthletes } = useStore();
   const toast = useToast();
   const [confirm, setConfirm] = useState(null); // athlete a archivar
   const activeAthletes = athletes.filter((a) => !a.archived);
@@ -61,18 +62,22 @@ export default function Athletes() {
 
           <div className="lvlgrid">
             {patterns.map((p) => {
-              const current = a.levels[p.id] || "A";
+              const current = a.levels[p.id];
               return (
                 <div className="prow" key={p.id}>
                   <span className="plabel">{p.label}</span>
                   <div className="lvlbtns">
-                    {["A", "B", "C"].map((lv) => (
-                      <button key={lv}
-                        className={`lvlbtn ${lv} ${current === lv ? "active" : ""}`}
-                        onClick={() => current !== lv && setLevel(a.id, p.id, lv)}>
-                        {lv}
-                      </button>
-                    ))}
+                    {levels.map((lv) => {
+                      const active = current === lv.id;
+                      return (
+                        <button key={lv.id}
+                          className={`lvlbtn ${active ? "active" : ""}`}
+                          style={active ? { background: lv.color, borderColor: lv.color, color: readableOn(lv.color) } : undefined}
+                          onClick={() => !active && setLevel(a.id, p.id, lv.id)}>
+                          {lv.label}
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
               );

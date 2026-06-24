@@ -15,6 +15,8 @@ from server.logic import format_value
 from server.models import (
     Athlete,
     AthleteLevel,
+    ExerciseVariant,
+    Level,
     Measurement,
     Pattern,
     RoutineBlock,
@@ -99,13 +101,15 @@ def export_backup(_=Depends(require_user), session: Session = Depends(get_sessio
         return [r.model_dump() for r in session.exec(select(model)).all()]
 
     return {
-        "version": 1,
+        "version": 2,
         "patterns": dump(Pattern),
+        "levels": dump(Level),
         "athletes": dump(Athlete),
         "athlete_levels": dump(AthleteLevel),
         "routine_days": dump(RoutineDay),
         "routine_blocks": dump(RoutineBlock),
         "routine_exercises": dump(RoutineExercise),
+        "exercise_variants": dump(ExerciseVariant),
         "tests": dump(Test),
         "test_sessions": dump(TestSession),
         "measurements": dump(Measurement),
@@ -124,11 +128,13 @@ async def import_backup(
     order = [
         ("measurements", Measurement),
         ("test_sessions", TestSession),
+        ("exercise_variants", ExerciseVariant),
         ("routine_exercises", RoutineExercise),
         ("routine_blocks", RoutineBlock),
         ("routine_days", RoutineDay),
         ("athlete_levels", AthleteLevel),
         ("athletes", Athlete),
+        ("levels", Level),
         ("tests", Test),
         ("patterns", Pattern),
     ]
