@@ -28,7 +28,14 @@ Internet ─DNS (nube gris)─► VM (IP pública)
 ## 0. Requisitos en la VM
 
 - Python 3.12+ (`python3 --version`).
-- Node 18+ y npm (para compilar el frontend; puede hacerse en la VM o en local y subir `client/dist`).
+- **Node.js 20 LTS + npm** (para compilar el frontend). El `npm` de `apt` suele ser demasiado viejo para
+  Vite 5; instala Node desde NodeSource:
+  ```bash
+  curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+  sudo apt-get install -y nodejs
+  node -v && npm -v        # v20.x / npm 10.x
+  ```
+  (Alternativa: compilar el frontend en local y subir `client/dist` por `scp`/`rsync`, sin Node en la VM.)
 - nginx instalado y funcionando (ya lo está, hospeda otros sitios).
 - `certbot` con el plugin de nginx (`sudo apt install certbot python3-certbot-nginx`).
 - `sqlite3` (para los backups): `sudo apt install sqlite3`.
