@@ -39,12 +39,18 @@ Internet ─DNS (nube gris)─► VM (IP pública)
 
 ## 1. Obtener el código
 
+El proyecto vive en el home del usuario `ubuntu`: **`/home/ubuntu/tablero_entrenador`**
+(`~/tablero_entrenador`). Si aún no está clonado:
+
 ```bash
-sudo mkdir -p /opt/tablero-entrenador
-sudo chown $USER:$USER /opt/tablero-entrenador
-# clona o copia el repositorio en /opt/tablero-entrenador
-cd /opt/tablero-entrenador
+cd ~
+git clone https://github.com/xaw624/tablero_entrenador.git
+cd ~/tablero_entrenador
 ```
+
+> Si más adelante mueves el proyecto a otra ruta, ajusta `WorkingDirectory`/`EnvironmentFile`/`ExecStart`
+> en `deploy/tablero-entrenador.service`, `APP_DIR` en `deploy/backup.sh` y el `proxy_pass` no cambia
+> (sigue siendo `127.0.0.1:8091`).
 
 ## 2. Elegir un puerto libre
 
@@ -61,7 +67,7 @@ Si está ocupado, elige otro (p. ej. `8092`) y cámbialo en **3 sitios coherente
 ## 3. Backend (venv + dependencias + seed)
 
 ```bash
-cd /opt/tablero-entrenador
+cd /home/ubuntu/tablero_entrenador
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
@@ -79,7 +85,7 @@ python -m server.seed            # crea admin + datos semilla (idempotente)
 ## 4. Frontend (build estático servido por FastAPI)
 
 ```bash
-cd /opt/tablero-entrenador/client
+cd /home/ubuntu/tablero_entrenador/client
 npm ci
 npm run build                    # genera client/dist
 ```
@@ -98,7 +104,7 @@ npm run build                    # genera client/dist
 Comprobación rápida en local de la VM (sin nginx aún):
 
 ```bash
-cd /opt/tablero-entrenador
+cd /home/ubuntu/tablero_entrenador
 .venv/bin/uvicorn server.main:app --host 127.0.0.1 --port 8091 &
 curl -s http://127.0.0.1:8091/api/health     # {"status":"ok"}
 curl -sI http://127.0.0.1:8091/ | head -1     # 200 (index.html)
@@ -170,7 +176,7 @@ chmod +x deploy/backup.sh
 deploy/backup.sh
 # Cron diario a las 03:00 con retención de 14 días:
 crontab -e
-#   0 3 * * * /opt/tablero-entrenador/deploy/backup.sh >> /var/log/tablero-backup.log 2>&1
+#   0 3 * * * /home/ubuntu/tablero_entrenador/deploy/backup.sh >> /var/log/tablero-backup.log 2>&1
 ```
 
 Restauración: descomprime un `app-*.db.gz` sobre `data/app.db` con el servicio detenido,
@@ -179,7 +185,7 @@ o usa `POST /api/import/backup.json` desde la app con el JSON de `GET /api/expor
 ## 10. Actualizaciones (deploy de nuevos cambios)
 
 ```bash
-cd /opt/tablero-entrenador
+cd /home/ubuntu/tablero_entrenador
 git pull                                   # o copia los archivos nuevos
 source .venv/bin/activate
 pip install -r requirements.txt            # si cambiaron deps

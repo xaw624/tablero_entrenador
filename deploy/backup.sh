@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 # Respaldo diario de la base SQLite con retención de 14 días.
 # Uso recomendado (cron del usuario que corre el servicio):
-#   0 3 * * * /opt/tablero-entrenador/deploy/backup.sh >> /var/log/tablero-backup.log 2>&1
+#   0 3 * * * /home/ubuntu/tablero_entrenador/deploy/backup.sh >> /var/log/tablero-backup.log 2>&1
 set -euo pipefail
 
-APP_DIR="/opt/tablero-entrenador"
+APP_DIR="/home/ubuntu/tablero_entrenador"
 DB="${APP_DIR}/data/app.db"
 UPLOADS="${APP_DIR}/data/uploads"
 DEST="${APP_DIR}/backups"

@@ -165,7 +165,7 @@ El método usa bloques de 4 semanas (3 carga + 1 descarga). Un indicador de "sem
 
 ### 4.1 Estructura de carpetas del repositorio
 ```
-metodo-funcional/
+tablero_entrenador/          # en el servidor: /home/ubuntu/tablero_entrenador
 ├── server/
 │   ├── __init__.py
 │   ├── main.py               # crea FastAPI, middlewares, monta estáticos + SPA fallback
@@ -879,9 +879,9 @@ After=network.target
 
 [Service]
 User=ubuntu
-WorkingDirectory=/opt/tablero-entrenador
-EnvironmentFile=/opt/tablero-entrenador/.env
-ExecStart=/opt/tablero-entrenador/.venv/bin/uvicorn server.main:app \
+WorkingDirectory=/home/ubuntu/tablero_entrenador
+EnvironmentFile=/home/ubuntu/tablero_entrenador/.env
+ExecStart=/home/ubuntu/tablero_entrenador/.venv/bin/uvicorn server.main:app \
     --host 127.0.0.1 --port 8091 \
     --proxy-headers --forwarded-allow-ips 127.0.0.1
 Restart=on-failure
