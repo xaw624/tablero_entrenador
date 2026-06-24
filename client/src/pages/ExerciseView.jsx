@@ -43,7 +43,7 @@ export default function ExerciseView() {
     );
   }
 
-  const variant = ex.variants[level] || {};
+  const variant = (ex.variants || {})[level] || {};
   const text = variant.text;
   const media = variant.media;
 

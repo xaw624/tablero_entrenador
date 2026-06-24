@@ -201,9 +201,18 @@ deploy/backup.sh                           # respaldo previo (recomendado)
 git pull                                   # o copia los archivos nuevos
 source .venv/bin/activate
 pip install -r requirements.txt            # si cambiaron deps
-python -m server.seed                       # idempotente; aplica migraciones y siembra lo que falte
+python -m server.migrate                    # aplica migraciones y MIGRA los ejercicios ya planteados
 cd client && npm ci && npm run build && cd ..
+sudo systemctl restart tablero-entrenador  # IMPRESCINDIBLE: carga el backend nuevo
+```
+
+`python -m server.migrate` es idempotente y muestra un resumen (niveles, días y cuántos ejercicios
+quedaron con sus variantes). Si la app se queda **"Cargando datos…"**, casi siempre es porque el
+servicio no se reinició y sigue corriendo el backend viejo (sin `/api/levels`): reinícialo y verifica:
+
+```bash
 sudo systemctl restart tablero-entrenador
+curl -s https://fitness.streamlytics.stream/api/levels   # debe devolver la lista de niveles (no 404)
 ```
 
 ## 11. Resolución de problemas
@@ -211,6 +220,8 @@ sudo systemctl restart tablero-entrenador
 | Síntoma | Causa probable | Acción |
 |---|---|---|
 | 502 Bad Gateway | uvicorn caído o puerto distinto | `systemctl status tablero-entrenador`; revisa `--port` vs `proxy_pass` |
+| Se queda en "Cargando datos…" | backend viejo sin reiniciar (no responde `/api/levels`) | `sudo systemctl restart tablero-entrenador`; `curl .../api/levels` debe responder. La app ahora muestra un error con **Reintentar** en vez de quedarse colgada |
+| Ejercicios sin variantes / vacíos | migración no aplicada | `python -m server.migrate` (idempotente; copia las variantes ya planteadas) |
 | Login no persiste (vuelve a pedir) | `COOKIE_SECURE=true` sin HTTPS, o falta `--proxy-headers` | Asegura HTTPS por nginx y el `X-Forwarded-Proto` |
 | 503 "Frontend no compilado" | falta `client/dist` | `cd client && npm run build` |
 | certbot falla HTTP-01 | registro en naranja o puerto 80 cerrado | Pon el registro en **gris**; confirma 80 abierto |

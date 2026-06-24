@@ -73,18 +73,24 @@ def _migrate(connection) -> None:
                 (lid, label, color, sort),
             )
 
-    # 3. Copiar variantes legacy → exercise_variants (una sola vez).
+    # 3. Copiar variantes legacy → exercise_variants. Idempotente y auto-sanador:
+    #    copia SOLO los ejercicios que aún no tienen ninguna fila de variante, así
+    #    repara estados parciales (p. ej. si una corrida anterior quedó a medias).
     ex_cols = _columns(connection, "routine_exercises")
-    variants_empty = not connection.exec_driver_sql(
-        "SELECT COUNT(*) FROM exercise_variants"
-    ).scalar()
-    if variants_empty and "variant_a" in ex_cols:
+    if "variant_a" in ex_cols:
         has_media = "media_a" in ex_cols
+        with_variants = {
+            row[0] for row in connection.exec_driver_sql(
+                "SELECT DISTINCT exercise_id FROM exercise_variants"
+            )
+        }
         cols = "id, variant_a, variant_b, variant_c"
         if has_media:
             cols += ", media_a, media_b, media_c"
         rows = connection.exec_driver_sql(f"SELECT {cols} FROM routine_exercises").all()
         for r in rows:
+            if r[0] in with_variants:
+                continue  # ya migrado
             texts = {"A": r[1] or "", "B": r[2] or "", "C": r[3] or ""}
             medias = {"A": r[4] or "", "B": r[5] or "", "C": r[6] or ""} if has_media else {}
             for lid in ("A", "B", "C"):

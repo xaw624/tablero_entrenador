@@ -148,7 +148,7 @@ function RoutinesEditor() {
                 </select>
               </div>
               {levels.map((lv) => {
-                const v = ex.variants[lv.id] || {};
+                const v = (ex.variants || {})[lv.id] || {};
                 return (
                   <div className="field variant-edit" key={lv.id} style={{ marginBottom: 6 }}>
                     <label style={{ color: lv.color }}>Variante · {lv.label}</label>

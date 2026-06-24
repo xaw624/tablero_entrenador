@@ -74,7 +74,7 @@ export default function Today() {
           {block.items.map((ex) => {
             if (athlete) {
               const levelId = athlete.levels[ex.pattern_id];
-              const v = ex.variants[levelId] || {};
+              const v = (ex.variants || {})[levelId] || {};
               return (
                 <ExerciseRow key={ex.id} exercise={ex} mode="solo" level={lvById[levelId]}
                   text={v.text} media={v.media} onShow={() => showExercise(ex.id)} />
