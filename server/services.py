@@ -1,9 +1,17 @@
 """Helpers de acceso a datos compartidos entre routers."""
 from __future__ import annotations
 
+import unicodedata
+
 from sqlmodel import Session, select
 
 from server.models import AthleteLevel, Level, Pattern
+
+
+def normalize(text: str) -> str:
+    """Minúsculas sin acentos, para búsquedas insensibles a tildes. Compartido import/API."""
+    norm = unicodedata.normalize("NFKD", text or "").encode("ascii", "ignore").decode("ascii")
+    return norm.lower().strip()
 
 
 def pattern_ids(session: Session) -> list[str]:

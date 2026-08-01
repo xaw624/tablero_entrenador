@@ -4,6 +4,7 @@ import { useStore } from "../state/store.jsx";
 import { useToast } from "../components/Toast.jsx";
 import ConfirmDialog from "../components/ConfirmDialog.jsx";
 import MediaPicker from "../components/MediaPicker.jsx";
+import CatalogPicker from "../components/CatalogPicker.jsx";
 import CsvBar from "../components/CsvBar.jsx";
 import { readableOn } from "../lib/levels.js";
 
@@ -35,6 +36,7 @@ function RoutinesEditor() {
   const days = Object.values(routines).sort((a, b) => a.sort - b.sort);
   const [day, setDay] = useState(() => days[0]?.day_key);
   const [confirm, setConfirm] = useState(null);
+  const [catalogBlock, setCatalogBlock] = useState(null);  // bloque destino del picker
   const dayData = routines[day] || days[0];
 
   const wrap = (fn) => async (...args) => {
@@ -57,6 +59,25 @@ function RoutinesEditor() {
   const addBlock = wrap(() => api.post(`/api/routines/${dayData.day_key}/blocks`, { title: "Nuevo bloque" }));
   const addExercise = wrap((blockId) =>
     api.post(`/api/routines/blocks/${blockId}/exercises`, { name: "Nuevo ejercicio", pattern_id: patterns[0].id }));
+  // Crea un ejercicio a partir de un ítem del catálogo: nombre + patrón (fallback al primero
+  // si el catálogo no lo mapeó) y, si trae medio, lo copia a la variante de cada nivel.
+  const addFromCatalog = async (blockId, item) => {
+    try {
+      const ex = await api.post(`/api/routines/blocks/${blockId}/exercises`, {
+        name: item.name,
+        pattern_id: item.pattern_id || patterns[0].id,
+      });
+      if (item.media) {
+        await Promise.all(
+          levels.map((lv) =>
+            api.put(`/api/routines/exercises/${ex.id}/variants/${lv.id}`, { media: item.media })),
+        );
+      }
+      await refreshRoutines();
+    } catch (e) {
+      toast(e instanceof ApiError ? e.detail : "Error al añadir desde el catálogo");
+    }
+  };
   const saveExercise = wrap((id, patch) => api.patch(`/api/routines/exercises/${id}`, patch));
   const delExercise = wrap((id) => api.del(`/api/routines/exercises/${id}`));
   const saveVariant = wrap((exId, levelId, patch) =>
@@ -155,6 +176,7 @@ function RoutinesEditor() {
                     <input defaultValue={v.text || ""} key={`ev-${ex.id}-${lv.id}`}
                       onBlur={(e) => e.target.value !== (v.text || "") && saveVariant(ex.id, lv.id, { text: e.target.value })} />
                     <MediaPicker level={lv.id} value={v.media || ""}
+                      pattern={ex.pattern_id} patterns={patterns}
                       onCommit={(val) => saveVariant(ex.id, lv.id, { media: val })}
                       onError={(m) => toast(m)} />
                   </div>
@@ -162,7 +184,10 @@ function RoutinesEditor() {
               })}
             </div>
           ))}
-          <button className="btn ghost sm" onClick={() => addExercise(block.id)}>+ Ejercicio</button>
+          <div className="row" style={{ gap: 6 }}>
+            <button className="btn ghost sm" onClick={() => addExercise(block.id)}>+ Ejercicio</button>
+            <button className="btn ghost sm" onClick={() => setCatalogBlock(block.id)}>+ Desde catálogo</button>
+          </div>
         </div>
       ))}
       </div>
@@ -185,6 +210,13 @@ function RoutinesEditor() {
           else delExercise(c.id);
         }}
         onCancel={() => setConfirm(null)}
+      />
+
+      <CatalogPicker
+        open={catalogBlock != null}
+        patterns={patterns}
+        onPick={(item) => { const b = catalogBlock; setCatalogBlock(null); addFromCatalog(b, item); }}
+        onClose={() => setCatalogBlock(null)}
       />
     </>
   );

@@ -14,6 +14,7 @@ from server.db import init_db
 from server.routers import (
     athletes,
     auth as auth_router,
+    catalog,
     csvio,
     export,
     levels,
@@ -74,6 +75,7 @@ app.include_router(progress.router)
 app.include_router(export.router)
 app.include_router(uploads.router)
 app.include_router(csvio.router)
+app.include_router(catalog.router)
 
 
 @app.get("/api/health")

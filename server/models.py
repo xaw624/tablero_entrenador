@@ -85,6 +85,30 @@ class ExerciseVariant(SQLModel, table=True):
     media: str = ""
 
 
+class ExerciseCatalog(SQLModel, table=True):
+    """Catálogo de ejercicios de referencia (solo lectura), importado de una fuente externa.
+
+    Desacoplado de RoutineExercise: es una fuente para autocompletar al crear ejercicios, no
+    los ejercicios del entrenador. Se rellena con `python -m server.import_catalog`.
+    `pattern_id` es nullable: si el mapeo categoría→patrón no acierta, el ejercicio aparece
+    igual y el entrenador ajusta el patrón al añadirlo.
+    """
+    __tablename__ = "exercise_catalog"
+    id: str = Field(primary_key=True)  # 'wger-345'
+    name: str = Field(index=True)
+    name_norm: str = Field(index=True)  # sin acentos, minúsculas (búsqueda insensible a tildes)
+    pattern_id: Optional[str] = Field(default=None, foreign_key="patterns.id")
+    category: str = ""       # categoría original de la fuente
+    equipment: str = ""      # equipo(s), coma-separado
+    muscles: str = ""        # músculos primarios, coma-separado
+    instructions: str = ""   # descripción en español, sin HTML
+    media: str = ""          # '/media/catalog-wger-345.jpg' (espejado) o URL
+    source: str = "wger"
+    attribution: str = ""
+    license_name: str = ""
+    created_at: int
+
+
 class Test(SQLModel, table=True):
     __tablename__ = "tests"
     id: str = Field(primary_key=True)

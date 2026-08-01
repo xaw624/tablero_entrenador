@@ -1,13 +1,16 @@
 import { useEffect, useRef, useState } from "react";
 import { api, ApiError } from "../api.js";
 import { mediaKind } from "../lib/media.js";
+import CatalogPicker from "./CatalogPicker.jsx";
 
-// Editor de medio de una variante: subir imagen/gif o pegar URL de video.
-// onCommit(value) persiste (se llama al subir y al salir del input de URL).
-export default function MediaPicker({ value, onCommit, level, onError }) {
+// Editor de medio de una variante: elegir del catálogo, subir imagen/gif o pegar URL de video.
+// onCommit(value) persiste (se llama al elegir del catálogo, al subir y al salir del input de URL).
+// `pattern` prefiltra el catálogo por el patrón del ejercicio (opcional).
+export default function MediaPicker({ value, onCommit, level, onError, pattern, patterns = [] }) {
   const fileRef = useRef(null);
   const [draft, setDraft] = useState(value || "");
   const [busy, setBusy] = useState(false);
+  const [showCatalog, setShowCatalog] = useState(false);
 
   useEffect(() => { setDraft(value || ""); }, [value]);
 
@@ -51,6 +54,9 @@ export default function MediaPicker({ value, onCommit, level, onError }) {
           onChange={(e) => setDraft(e.target.value)}
           onBlur={commitUrl}
         />
+        <button type="button" className="btn ghost sm" onClick={() => setShowCatalog(true)}>
+          Catálogo
+        </button>
         <button type="button" className="btn ghost sm" disabled={busy} onClick={() => fileRef.current?.click()}>
           {busy ? "…" : "Subir"}
         </button>
@@ -71,6 +77,18 @@ export default function MediaPicker({ value, onCommit, level, onError }) {
           {kind === "image" && <img className="media-thumb" src={draft} alt="" />}
         </div>
       )}
+
+      <CatalogPicker
+        open={showCatalog}
+        pattern={pattern}
+        patterns={patterns}
+        onPick={(item) => {
+          setShowCatalog(false);
+          if (item.media) { setDraft(item.media); onCommit(item.media); }
+          else onError?.("Ese ejercicio del catálogo no tiene medio.");
+        }}
+        onClose={() => setShowCatalog(false)}
+      />
     </div>
   );
 }
